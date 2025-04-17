@@ -99,9 +99,11 @@ const Home = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full">
-              Ver Estatísticas Detalhadas
-            </Button>
+            <Link to="/products">
+              <Button variant="outline" className="w-full">
+                Ver Estatísticas Detalhadas
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
 
@@ -180,9 +182,11 @@ const Home = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full">
-              Ver Todas as Atividades
-            </Button>
+            <Link to="/products">
+              <Button variant="outline" className="w-full">
+                Ver Todas as Atividades
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
       </div>

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Trash2 } from "lucide-react";
+import { useProducts } from "@/contexts/ProductContext";
+import { ArrowLeft, Edit, Trash2, Save, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 import {
@@ -13,6 +14,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Carousel,
   CarouselContent,
@@ -41,13 +52,23 @@ interface ProductDetailProps {
   };
 }
 
-const ProductDetail = ({ product }: ProductDetailProps) => {
+const ProductDetail = ({ product: propProduct }: ProductDetailProps) => {
   const { id } = useParams();
+  const productId = Number(id);
   const navigate = useNavigate();
+  const { getProduct, updateProduct, deleteProduct } = useProducts();
+  const [isEditing, setIsEditing] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadedProduct, setLoadedProduct] = useState<
+    ProductDetailProps["product"] | null
+  >(null);
 
   // Mock data for when no product is provided
   const defaultProduct = {
-    id: Number(id) || 1,
+    id: productId || 1,
     titulo: "Produto Exemplo",
     tipo: "Alimento",
     ingredientes:
@@ -68,22 +89,115 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
     data_cadastro: new Date().toISOString(),
   };
 
-  const productData = product || defaultProduct;
+  // Fetch product data if ID is provided
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (productId && !propProduct) {
+        setIsLoading(true);
+        try {
+          const data = await getProduct(productId);
+          if (data) {
+            setLoadedProduct(data);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar produto:", error);
+          setFormError("Não foi possível carregar os dados do produto.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProduct();
+  }, [productId, propProduct, getProduct]);
+
+  // Determine which product data to use
+  const actualProduct = propProduct || loadedProduct || defaultProduct;
+  const [editedProduct, setEditedProduct] = useState(actualProduct);
+
+  // Update editedProduct when actualProduct changes
+  useEffect(() => {
+    setEditedProduct(actualProduct);
+  }, [actualProduct]);
+  const productData = isEditing ? editedProduct : actualProduct;
   const selosArray = productData.selos.split(",").map((selo) => selo.trim());
 
   const handleBack = () => {
-    navigate(-1);
+    if (isEditing) {
+      // If in edit mode, ask for confirmation before navigating away
+      if (
+        window.confirm(
+          "Deseja sair do modo de edição? Alterações não salvas serão perdidas.",
+        )
+      ) {
+        setIsEditing(false);
+        setEditedProduct(actualProduct);
+      }
+    } else {
+      navigate(-1);
+    }
   };
 
   const handleEdit = () => {
-    navigate(`/products/edit/${productData.id}`);
+    setIsEditing(true);
+    setFormError(null);
+    setFormSuccess(null);
   };
 
-  const handleDelete = () => {
-    // In a real application, this would show a confirmation dialog
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedProduct(actualProduct);
+    setFormError(null);
+    setFormSuccess(null);
+  };
+
+  const handleSave = async () => {
+    if (!editedProduct.id) return;
+
+    setIsSaving(true);
+    setFormError(null);
+    setFormSuccess(null);
+
+    try {
+      const result = await updateProduct(editedProduct.id, editedProduct);
+
+      if (result) {
+        setFormSuccess("Produto atualizado com sucesso!");
+        setIsEditing(false);
+        setLoadedProduct(result);
+      } else {
+        throw new Error("Falha ao atualizar o produto");
+      }
+    } catch (error) {
+      setFormError("Erro ao salvar o produto. Tente novamente.");
+      console.error("Error saving product:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setEditedProduct((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleDelete = async () => {
+    if (!productData.id) return;
+
     if (window.confirm("Tem certeza que deseja excluir este produto?")) {
-      // API call would go here
-      navigate("/products");
+      try {
+        const success = await deleteProduct(productData.id);
+        if (success) {
+          navigate("/products");
+        } else {
+          setFormError("Não foi possível excluir o produto. Tente novamente.");
+        }
+      } catch (error) {
+        console.error("Erro ao excluir produto:", error);
+        setFormError("Erro ao excluir o produto. Tente novamente.");
+      }
     }
   };
 
@@ -97,20 +211,49 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
       <div className="flex items-center mb-6">
         <Button variant="ghost" onClick={handleBack} className="mr-2">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar
+          {isEditing ? "Cancelar" : "Voltar"}
         </Button>
-        <h1 className="text-2xl font-bold flex-1">Detalhes do Produto</h1>
+        <h1 className="text-2xl font-bold flex-1">
+          {isEditing ? "Editando Produto" : "Detalhes do Produto"}
+        </h1>
         <div className="space-x-2">
-          <Button variant="outline" onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-          <Button variant="destructive" onClick={handleDelete}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Excluir
-          </Button>
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={handleCancelEdit}>
+                <X className="mr-2 h-4 w-4" />
+                Cancelar
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleEdit}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+              <Button variant="destructive" onClick={handleDelete}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {formError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      {formSuccess && (
+        <Alert className="mb-6 bg-green-50 border-green-200 text-green-800">
+          <AlertDescription>{formSuccess}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
@@ -173,37 +316,102 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Tipo
                   </h3>
-                  <p>{productData.tipo}</p>
+                  {isEditing ? (
+                    <Select
+                      value={editedProduct.tipo}
+                      onValueChange={(value) =>
+                        handleInputChange("tipo", value)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Alimento">Alimento</SelectItem>
+                        <SelectItem value="Bebida">Bebida</SelectItem>
+                        <SelectItem value="Higiene">Higiene</SelectItem>
+                        <SelectItem value="Limpeza">Limpeza</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p>{productData.tipo}</p>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Fabricante
                   </h3>
-                  <p>{productData.fabricante}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editedProduct.fabricante}
+                      onChange={(e) =>
+                        handleInputChange("fabricante", e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p>{productData.fabricante}</p>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Local
                   </h3>
-                  <p>{productData.local}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editedProduct.local}
+                      onChange={(e) =>
+                        handleInputChange("local", e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p>{productData.local}</p>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Variação
                   </h3>
-                  <p>{productData.variacao}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editedProduct.variacao}
+                      onChange={(e) =>
+                        handleInputChange("variacao", e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p>{productData.variacao}</p>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Exportação
                   </h3>
-                  <p>{productData.exportacao}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editedProduct.exportacao}
+                      onChange={(e) =>
+                        handleInputChange("exportacao", e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p>{productData.exportacao}</p>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Macro
                   </h3>
-                  <p>{productData.macro}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editedProduct.macro}
+                      onChange={(e) =>
+                        handleInputChange("macro", e.target.value)
+                      }
+                    />
+                  ) : (
+                    <p>{productData.macro}</p>
+                  )}
                 </div>
               </div>
 
@@ -213,18 +421,38 @@ const ProductDetail = ({ product }: ProductDetailProps) => {
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">
                   Ingredientes
                 </h3>
-                <div className="bg-muted p-3 rounded-md whitespace-pre-line">
-                  {productData.ingredientes}
-                </div>
+                {isEditing ? (
+                  <Textarea
+                    value={editedProduct.ingredientes}
+                    onChange={(e) =>
+                      handleInputChange("ingredientes", e.target.value)
+                    }
+                    className="min-h-[120px]"
+                  />
+                ) : (
+                  <div className="bg-muted p-3 rounded-md whitespace-pre-line">
+                    {productData.ingredientes}
+                  </div>
+                )}
               </div>
 
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">
                   Observações
                 </h3>
-                <div className="bg-muted p-3 rounded-md whitespace-pre-line">
-                  {productData.observacoes}
-                </div>
+                {isEditing ? (
+                  <Textarea
+                    value={editedProduct.observacoes}
+                    onChange={(e) =>
+                      handleInputChange("observacoes", e.target.value)
+                    }
+                    className="min-h-[120px]"
+                  />
+                ) : (
+                  <div className="bg-muted p-3 rounded-md whitespace-pre-line">
+                    {productData.observacoes}
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="border-t pt-4">

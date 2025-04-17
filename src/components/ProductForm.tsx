@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useProducts } from "@/contexts/ProductContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { X, Upload, Plus, Trash2 } from "lucide-react";
@@ -56,6 +57,36 @@ const ProductForm = ({
   onCancel,
 }: ProductFormProps = {}) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const productId = queryParams.get("id");
+  const { getProduct, createProduct, updateProduct } = useProducts();
+  const [loadedProduct, setLoadedProduct] = useState<ProductFormValues | null>(
+    null,
+  );
+  const [loadingProduct, setLoadingProduct] = useState(false);
+
+  // If productId is present, we're in edit mode
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (productId) {
+        setLoadingProduct(true);
+        try {
+          const product = await getProduct(Number(productId));
+          if (product) {
+            setLoadedProduct(product as ProductFormValues);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar produto:", error);
+          setFormError("Não foi possível carregar os dados do produto.");
+        } finally {
+          setLoadingProduct(false);
+        }
+      }
+    };
+
+    fetchProduct();
+  }, [productId, getProduct]);
   const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -64,19 +95,31 @@ const ProductForm = ({
   // Initialize form with react-hook-form
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: initialData || {
-      titulo: "",
-      tipo: "",
-      ingredientes: "",
-      fabricante: "",
-      local: "",
-      selos: "",
-      variacao: "",
-      exportacao: "",
-      macro: "",
-      observacoes: "",
-    },
+    defaultValues: initialData ||
+      loadedProduct || {
+        titulo: "",
+        tipo: "",
+        ingredientes: "",
+        fabricante: "",
+        local: "",
+        selos: "",
+        variacao: "",
+        exportacao: "",
+        macro: "",
+        observacoes: "",
+      },
   });
+
+  // Update form values when loadedProduct changes
+  useEffect(() => {
+    if (loadedProduct) {
+      Object.entries(loadedProduct).forEach(([key, value]) => {
+        if (value !== undefined && key in form.getValues()) {
+          form.setValue(key as keyof ProductFormValues, value as any);
+        }
+      });
+    }
+  }, [loadedProduct, form]);
 
   // Handle form submission
   const handleSubmit = async (data: ProductFormValues) => {
@@ -85,15 +128,39 @@ const ProductForm = ({
     setFormSuccess(null);
 
     try {
-      // In a real application, you would upload images and get URLs back
-      // For this scaffold, we'll just use the mock images
-      if (onSubmit) {
-        onSubmit({ ...data, images });
+      // Prepare image URLs
+      const productData = {
+        ...data,
+        imagem_front: images[0] || "",
+        imagem_verso: images[1] || "",
+        imagem_adicional: images[2] || "",
+      };
+
+      let result;
+
+      if (productId) {
+        // Update existing product
+        result = await updateProduct(Number(productId), productData);
+      } else {
+        // Create new product
+        result = await createProduct(productData);
       }
-      setFormSuccess("Produto salvo com sucesso!");
-      if (!initialData) {
-        form.reset();
-        setImages([]);
+
+      if (result) {
+        setFormSuccess("Produto salvo com sucesso!");
+
+        // If it's a new product, reset the form
+        if (!productId) {
+          form.reset();
+          setImages([]);
+        }
+
+        // Navigate back to products list after a short delay
+        setTimeout(() => {
+          navigate("/products");
+        }, 1500);
+      } else {
+        throw new Error("Falha ao salvar o produto");
       }
     } catch (error) {
       setFormError("Erro ao salvar o produto. Tente novamente.");

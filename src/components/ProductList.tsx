@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, Pencil, Trash2, Search } from "lucide-react";
+import { Eye, Pencil, Trash2, Search, ArrowLeft } from "lucide-react";
 
 interface Product {
   id: number;
@@ -50,6 +51,8 @@ interface Product {
 }
 
 const ProductList = () => {
+  const navigate = useNavigate();
+
   // Mock data for demonstration
   const [products, setProducts] = useState<Product[]>([
     {
@@ -97,13 +100,23 @@ const ProductList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteProductId, setDeleteProductId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState({
+    tipo: "",
+    fabricante: "",
+    local: "",
+  });
   const itemsPerPage = 5;
 
-  // Filter products based on search term
+  // Filter products based on search term and filters
   const filteredProducts = products.filter(
     (product) =>
-      product.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.fabricante.toLowerCase().includes(searchTerm.toLowerCase()),
+      (searchTerm === "" ||
+        product.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.fabricante.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (filters.tipo === "" || product.tipo === filters.tipo) &&
+      (filters.fabricante === "" ||
+        product.fabricante === filters.fabricante) &&
+      (filters.local === "" || product.local === filters.local),
   );
 
   // Calculate pagination
@@ -123,24 +136,100 @@ const ProductList = () => {
     }
   };
 
+  const handleBack = () => {
+    navigate("/");
+  };
+
   return (
     <div className="w-full bg-background p-6">
+      <div className="flex items-center mb-6">
+        <Button variant="ghost" onClick={handleBack} className="mr-2">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
+        </Button>
+        <h1 className="text-2xl font-bold flex-1">Lista de Produtos</h1>
+      </div>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <CardTitle>Lista de Produtos</CardTitle>
-            <Button>Novo Produto</Button>
+            <Link to="/productform">
+              <Button>Novo Produto</Button>
+            </Link>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center mb-6 relative">
-            <Input
-              placeholder="Buscar por título ou fabricante"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pr-10"
-            />
-            <Search className="absolute right-3 h-5 w-5 text-muted-foreground" />
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center relative">
+              <Input
+                placeholder="Buscar por título ou fabricante"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+              <Search className="absolute right-3 h-5 w-5 text-muted-foreground" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Tipo</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  value={filters.tipo}
+                  onChange={(e) =>
+                    setFilters({ ...filters, tipo: e.target.value })
+                  }
+                >
+                  <option value="">Todos</option>
+                  <option value="Alimento">Alimento</option>
+                  <option value="Bebida">Bebida</option>
+                  <option value="Higiene">Higiene</option>
+                  <option value="Limpeza">Limpeza</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  Fabricante
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  value={filters.fabricante}
+                  onChange={(e) =>
+                    setFilters({ ...filters, fabricante: e.target.value })
+                  }
+                >
+                  <option value="">Todos</option>
+                  {Array.from(new Set(products.map((p) => p.fabricante))).map(
+                    (fab) => (
+                      <option key={fab} value={fab}>
+                        {fab}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Local</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                  value={filters.local}
+                  onChange={(e) =>
+                    setFilters({ ...filters, local: e.target.value })
+                  }
+                >
+                  <option value="">Todos</option>
+                  {Array.from(new Set(products.map((p) => p.local))).map(
+                    (loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-md border">
@@ -162,7 +251,12 @@ const ProductList = () => {
                     <TableRow key={product.id}>
                       <TableCell>{product.id}</TableCell>
                       <TableCell className="font-medium">
-                        {product.titulo}
+                        <Link
+                          to={`/products/${product.id}`}
+                          className="hover:underline text-primary"
+                        >
+                          {product.titulo}
+                        </Link>
                       </TableCell>
                       <TableCell>{product.tipo}</TableCell>
                       <TableCell>{product.fabricante}</TableCell>
@@ -226,9 +320,11 @@ const ProductList = () => {
                             </DialogContent>
                           </Dialog>
 
-                          <Button variant="ghost" size="icon">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <Link to={`/productform`}>
+                            <Button variant="ghost" size="icon">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Link>
 
                           <AlertDialog>
                             <AlertDialogTrigger asChild>

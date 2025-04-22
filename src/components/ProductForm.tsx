@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Product } from "@/services/database";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useProducts } from "@/contexts/ProductContext";

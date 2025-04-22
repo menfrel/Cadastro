@@ -84,7 +84,7 @@ const ProductDetail = ({ product: propProduct }: ProductDetailProps) => {
   >(null);
 
   // Mock data for when no product is provided
-  const defaultProduct = {
+  const defaultProduct: Product = {
     id: productId || 1,
     titulo: "Produto Exemplo",
     tipo: "Alimento",

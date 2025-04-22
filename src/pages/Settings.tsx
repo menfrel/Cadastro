@@ -139,7 +139,7 @@ const Settings = () => {
     {
       id: 9,
       name: "macro",
-      label: "Macro",
+      label: "Feira",
       type: "text",
       required: false,
       isDefault: true,

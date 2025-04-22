@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useProducts } from "@/contexts/ProductContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,63 +40,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, Pencil, Trash2, Search, ArrowLeft } from "lucide-react";
-
-interface Product {
-  id: number;
-  titulo: string;
-  tipo: string;
-  fabricante: string;
-  local: string;
-  data_cadastro: string;
-}
+import {
+  Eye,
+  Pencil,
+  Trash2,
+  Search,
+  ArrowLeft,
+  RefreshCw,
+} from "lucide-react";
+import { Product } from "@/services/database";
 
 const ProductList = () => {
   const navigate = useNavigate();
-
-  // Mock data for demonstration
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      titulo: "Cereal Matinal Integral",
-      tipo: "Alimento",
-      fabricante: "Nutrifoods",
-      local: "São Paulo",
-      data_cadastro: "2023-05-15",
-    },
-    {
-      id: 2,
-      titulo: "Bebida Láctea Fermentada",
-      tipo: "Bebida",
-      fabricante: "Lacticínios Puro",
-      local: "Minas Gerais",
-      data_cadastro: "2023-06-22",
-    },
-    {
-      id: 3,
-      titulo: "Biscoito Integral",
-      tipo: "Alimento",
-      fabricante: "Nutrifoods",
-      local: "Rio de Janeiro",
-      data_cadastro: "2023-07-10",
-    },
-    {
-      id: 4,
-      titulo: "Suco Natural de Laranja",
-      tipo: "Bebida",
-      fabricante: "Sucos Naturais",
-      local: "Bahia",
-      data_cadastro: "2023-08-05",
-    },
-    {
-      id: 5,
-      titulo: "Barra de Cereal",
-      tipo: "Alimento",
-      fabricante: "Nutrifoods",
-      local: "São Paulo",
-      data_cadastro: "2023-09-18",
-    },
-  ]);
+  const { products, loading, error, deleteProduct, refreshProducts } =
+    useProducts();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteProductId, setDeleteProductId] = useState<number | null>(null);
@@ -112,7 +70,7 @@ const ProductList = () => {
     (product) =>
       (searchTerm === "" ||
         product.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.fabricante.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        product.fabricante?.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (filters.tipo === "" || product.tipo === filters.tipo) &&
       (filters.fabricante === "" ||
         product.fabricante === filters.fabricante) &&
@@ -128,12 +86,31 @@ const ProductList = () => {
   );
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
+  // Reset to first page when filters or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters]);
+
   // Handle delete confirmation
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (deleteProductId !== null) {
-      setProducts(products.filter((product) => product.id !== deleteProductId));
-      setDeleteProductId(null);
+      try {
+        const success = await deleteProduct(deleteProductId);
+        if (success) {
+          setDeleteProductId(null);
+        } else {
+          alert("Erro ao excluir o produto. Tente novamente.");
+        }
+      } catch (error) {
+        console.error("Erro ao excluir produto:", error);
+        alert("Erro ao excluir o produto. Tente novamente.");
+      }
     }
+  };
+
+  // Função para atualizar os dados
+  const handleRefresh = async () => {
+    await refreshProducts();
   };
 
   const handleBack = () => {
@@ -148,6 +125,10 @@ const ProductList = () => {
           Voltar
         </Button>
         <h1 className="text-2xl font-bold flex-1">Lista de Produtos</h1>
+        <Button onClick={handleRefresh} className="mr-2">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Atualizar
+        </Button>
       </div>
       <Card>
         <CardHeader className="pb-3">
@@ -232,146 +213,200 @@ const ProductList = () => {
             </div>
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Fabricante</TableHead>
-                  <TableHead>Local</TableHead>
-                  <TableHead>Data de Cadastro</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentItems.length > 0 ? (
-                  currentItems.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>{product.id}</TableCell>
-                      <TableCell className="font-medium">
-                        <Link
-                          to={`/products/${product.id}`}
-                          className="hover:underline text-primary"
-                        >
-                          {product.titulo}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{product.tipo}</TableCell>
-                      <TableCell>{product.fabricante}</TableCell>
-                      <TableCell>{product.local}</TableCell>
-                      <TableCell>{product.data_cadastro}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Detalhes do Produto</DialogTitle>
-                                <DialogDescription>
-                                  Visualizando informações do produto{" "}
-                                  {product.titulo}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-sm font-medium">ID:</p>
-                                    <p>{product.id}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      Título:
-                                    </p>
-                                    <p>{product.titulo}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">Tipo:</p>
-                                    <p>{product.tipo}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      Fabricante:
-                                    </p>
-                                    <p>{product.fabricante}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      Local:
-                                    </p>
-                                    <p>{product.local}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      Data de Cadastro:
-                                    </p>
-                                    <p>{product.data_cadastro}</p>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <svg
+                className="animate-spin h-8 w-8 text-primary"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span className="ml-2">Carregando produtos...</span>
+            </div>
+          ) : error ? (
+            <div className="bg-destructive/10 text-destructive p-4 rounded-md">
+              {error}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Fabricante</TableHead>
+                    <TableHead>Local</TableHead>
+                    <TableHead>Data de Cadastro</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentItems.length > 0 ? (
+                    currentItems.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell>{product.id}</TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            to={`/products/${product.id}`}
+                            className="hover:underline text-primary"
+                          >
+                            {product.titulo}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{product.tipo}</TableCell>
+                        <TableCell>{product.fabricante}</TableCell>
+                        <TableCell>{product.local}</TableCell>
+                        <TableCell>
+                          {new Date(
+                            product.data_cadastro || "",
+                          ).toLocaleDateString("pt-BR")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Detalhes do Produto</DialogTitle>
+                                  <DialogDescription>
+                                    Visualizando informações do produto{" "}
+                                    {product.titulo}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p className="text-sm font-medium">ID:</p>
+                                      <p>{product.id}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        Título:
+                                      </p>
+                                      <p>{product.titulo}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        Tipo:
+                                      </p>
+                                      <p>{product.tipo}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        Fabricante:
+                                      </p>
+                                      <p>{product.fabricante}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        Local:
+                                      </p>
+                                      <p>{product.local}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        Data de Cadastro:
+                                      </p>
+                                      <p>
+                                        {new Date(
+                                          product.data_cadastro || "",
+                                        ).toLocaleDateString("pt-BR")}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <DialogFooter>
-                                <Button variant="outline">Fechar</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                                <DialogFooter>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                      document
+                                        .querySelector('[role="dialog"]')
+                                        ?.querySelector(
+                                          'button[aria-label="Close"]',
+                                        )
+                                        ?.click()
+                                    }
+                                  >
+                                    Fechar
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
 
-                          <Link to={`/productform`}>
-                            <Button variant="ghost" size="icon">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </Link>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteProductId(product.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
+                            <Link to={`/products/${product.id}`}>
+                              <Button variant="ghost" size="icon">
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Confirmar exclusão
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o produto "
-                                  {product.titulo}"? Esta ação não pode ser
-                                  desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={handleDeleteConfirm}
-                                  className="bg-destructive text-destructive-foreground"
+                            </Link>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteProductId(product.id)}
                                 >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirmar exclusão
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o produto "
+                                    {product.titulo}"? Esta ação não pode ser
+                                    desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>
+                                    Cancelar
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={handleDeleteConfirm}
+                                    className="bg-destructive text-destructive-foreground"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-6">
+                        Nenhum produto encontrado
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-6">
-                      Nenhum produto encontrado
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           {totalPages > 1 && (
             <div className="mt-6">

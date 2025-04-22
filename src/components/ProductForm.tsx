@@ -128,7 +128,11 @@ const ProductForm = ({
     setFormSuccess(null);
 
     try {
-      // Prepare image URLs
+      // In a real app, you would first upload the images to a server
+      // and then save the URLs to the database
+
+      // For now, we'll use the existing image URLs
+      // In a production environment, these would be paths to saved files
       const productData = {
         ...data,
         imagem_front: images[0] || "",

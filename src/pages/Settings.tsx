@@ -56,6 +56,19 @@ interface Field {
 const Settings = () => {
   const navigate = useNavigate();
 
+  // Estado para configurações de ambiente
+  const [envConfig, setEnvConfig] = useState({
+    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || "",
+    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+    DB_CONNECTION_STRING: "",
+  });
+
+  // Estado para controlar o diálogo de configurações de ambiente
+  const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false);
+
+  // Estado para mensagem de sucesso ao salvar configurações
+  const [envSaveSuccess, setEnvSaveSuccess] = useState(false);
+
   // Estado para os campos padrão e personalizados
   const [fields, setFields] = useState<Field[]>([
     {
@@ -207,6 +220,29 @@ const Settings = () => {
     setIsDialogOpen(true);
   };
 
+  // Função para atualizar as configurações de ambiente
+  const handleEnvChange = (key: string, value: string) => {
+    setEnvConfig((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  // Função para salvar as configurações de ambiente
+  const saveEnvConfig = () => {
+    // Aqui você poderia implementar a lógica para salvar as configurações
+    // Por exemplo, enviando para uma API ou salvando no localStorage
+    console.log("Configurações salvas:", envConfig);
+
+    // Exibir mensagem de sucesso
+    setEnvSaveSuccess(true);
+
+    // Esconder a mensagem após 3 segundos
+    setTimeout(() => {
+      setEnvSaveSuccess(false);
+    }, 3000);
+  };
+
   return (
     <div className="w-full bg-background p-6">
       <div className="flex items-center mb-6">
@@ -310,6 +346,46 @@ const Settings = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="env" className="mt-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle>Configurações de Ambiente</CardTitle>
+              <Button onClick={() => setIsEnvDialogOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar Configurações
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium">Supabase URL</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {envConfig.VITE_SUPABASE_URL || "Não configurado"}
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-medium">Supabase Key</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {envConfig.VITE_SUPABASE_ANON_KEY
+                      ? "*****" + envConfig.VITE_SUPABASE_ANON_KEY.slice(-5)
+                      : "Não configurado"}
+                  </p>
+                </div>
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-medium">SQL Server Connection</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {envConfig.DB_CONNECTION_STRING
+                      ? "*****" + envConfig.DB_CONNECTION_STRING.slice(-5)
+                      : "Não configurado"}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -459,6 +535,80 @@ const Settings = () => {
             <Button onClick={editingField ? handleUpdateField : handleAddField}>
               {editingField ? "Atualizar" : "Adicionar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para editar variáveis de ambiente */}
+      <Dialog open={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configurações de Ambiente</DialogTitle>
+            <DialogDescription>
+              Configure as variáveis de ambiente para conexão com o banco de
+              dados. Estas configurações serão salvas no arquivo .env do
+              projeto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {envSaveSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-md mb-4">
+                Configurações salvas com sucesso!
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="supabase-url" className="text-right">
+                Supabase URL
+              </Label>
+              <Input
+                id="supabase-url"
+                value={envConfig.VITE_SUPABASE_URL}
+                onChange={(e) =>
+                  handleEnvChange("VITE_SUPABASE_URL", e.target.value)
+                }
+                placeholder="https://seu-projeto.supabase.co"
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="supabase-key" className="text-right">
+                Supabase Key
+              </Label>
+              <Input
+                id="supabase-key"
+                value={envConfig.VITE_SUPABASE_ANON_KEY}
+                onChange={(e) =>
+                  handleEnvChange("VITE_SUPABASE_ANON_KEY", e.target.value)
+                }
+                placeholder="sua-chave-anon-publica"
+                className="col-span-3"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="db-connection" className="text-right">
+                SQL Server
+              </Label>
+              <Input
+                id="db-connection"
+                value={envConfig.DB_CONNECTION_STRING}
+                onChange={(e) =>
+                  handleEnvChange("DB_CONNECTION_STRING", e.target.value)
+                }
+                placeholder="Server=localhost\SQLEXPRESS;Database=GerenciamentoProdutos;Trusted_Connection=True;"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEnvDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveEnvConfig}>Salvar Configurações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

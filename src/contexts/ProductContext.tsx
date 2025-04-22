@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { Product, productService } from "@/services/database";
+import { Product, productService, supabase } from "@/services/database";
 
 interface ProductContextType {
   products: Product[];

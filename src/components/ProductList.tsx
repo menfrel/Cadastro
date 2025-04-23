@@ -337,14 +337,19 @@ const ProductList = () => {
                                 <DialogFooter>
                                   <Button
                                     variant="outline"
-                                    onClick={() =>
-                                      document
-                                        .querySelector('[role="dialog"]')
-                                        ?.querySelector(
+                                    onClick={() => {
+                                      const dialogElement =
+                                        document.querySelector(
+                                          '[role="dialog"]',
+                                        );
+                                      const closeButton =
+                                        dialogElement?.querySelector(
                                           'button[aria-label="Close"]',
-                                        )
-                                        ?.click()
-                                    }
+                                        );
+                                      if (closeButton instanceof HTMLElement) {
+                                        closeButton.click();
+                                      }
+                                    }}
                                   >
                                     Fechar
                                   </Button>

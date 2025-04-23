@@ -1,11 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
-
 // Inicializa o cliente Supabase (usado como alternativa ao SQL Server Express no ambiente web)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Interface para produtos
 export interface Product {
